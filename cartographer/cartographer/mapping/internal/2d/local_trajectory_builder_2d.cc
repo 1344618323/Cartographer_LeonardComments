@@ -311,7 +311,7 @@ LocalTrajectoryBuilder2D::AddAccumulatedRangeData(
   sensor::RangeData range_data_in_local =
       TransformRangeData(gravity_aligned_range_data,
                          transform::Embed3D(pose_estimate_2d->cast<float>()));
-  //更新submap，并进一步体素滤波
+  //更新submap
   std::unique_ptr<InsertionResult> insertion_result =
       InsertIntoSubmap(time, range_data_in_local, gravity_aligned_range_data,
                        pose_estimate, gravity_alignment.rotation());
