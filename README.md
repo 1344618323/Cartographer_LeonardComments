@@ -4,6 +4,8 @@
 
 再次膜拜写出这套代码的大佬们！
 
+<table><td bgcolor=yellow><font color=black>一点思考：Cartographer在检测回环的时候，其实就是只要一帧数据与submap匹配上了就是回环，个人感觉这里可以加一个连续性检测，就像ORB-SLAM一样，连续几帧与同一个submap匹配上了，我才算一个回环，会不会更鲁棒一些呢？</font></td></tr></table>
+
 以下是学习过程中随手写的笔记，比较乱。
 
 ## LOCAL 2D SLAM
