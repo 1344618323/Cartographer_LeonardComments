@@ -308,15 +308,16 @@ std::vector<Candidate2D>
 FastCorrelativeScanMatcher2D::ComputeLowestResolutionCandidates(
     const std::vector<DiscreteScan2D>& discrete_scans,
     const SearchParameters& search_parameters) const {
+  /*(cxn)
+  在分枝定界匹配中，角度搜索不长是不变的，都是论文中的公式 6-7
+  而平移的搜索步长从分辨率低到高，这里生成了最低分辨率的搜索候选者
+  即对 同一帧率点云有 候选者们
+   (转theta度，平移x，平移y)，(转theta度，平移x，平移y+deltay),(转theta度，平移x，平移y+2deltay),...
+                           (转theta度，平移x+deltax，平移y+deltay),(转theta度，平移x+deltax，平移y+2deltay),...
   
-  //在分枝定界匹配中，角度搜索不长是不变的，都是论文中的公式 6-7
-  //而平移的搜索步长从分辨率低到高，这里生成了最低分辨率的搜索候选者
-  //即对 同一帧率点云有 候选者们
-  // (转theta度，平移x，平移y)，(转theta度，平移x，平移y+deltay),转theta度，平移x，平移y+2deltay),...
-  //                         (转theta度，平移x+deltax，平移y+deltay),转theta度，平移x+deltax，平移y+2deltay),...
-  //
-  // (转theta+deltat度，平移x，平移y)，(转theta+deltat度，平移x，平移y+deltay),转theta+deltat度，平移x，平移y+2deltay),...
-  //                                (转theta+deltat度，平移x+deltax，平移y+deltay),转theta+deltat度，平移x+deltax，平移y+2deltay),...
+   (转theta+deltat度，平移x，平移y)，(转theta+deltat度，平移x，平移y+deltay),(转theta+deltat度，平移x，平移y+2deltay),...
+                                  (转theta+deltat度，平移x+deltax，(平移y+deltay),(转theta+deltat度，平移x+deltax，平移y+2deltay),...
+  */
   std::vector<Candidate2D> lowest_resolution_candidates =
       GenerateLowestResolutionCandidates(search_parameters);
 
@@ -398,7 +399,7 @@ void FastCorrelativeScanMatcher2D::ScoreCandidates(
 
 虽然能保障 S(a)>S(a_leaf),S(b)>S(b_leaf),S(a)>S(b)，但无法保障 S(a_leaf)>S(b_leaf)，leaf指的是叶子节点
 
-分枝定界怎么解决的呢，算法中的 best-score 只有在 叶子节点时才更改，意味着最后选出来的结一定是最优的叶子节点
+分枝定界怎么解决的呢，算法中的 best-score 只有在 叶子节点时才更改，意味着最后选出来的解一定是最优的叶子节点
 */
 Candidate2D FastCorrelativeScanMatcher2D::BranchAndBound(
     const std::vector<DiscreteScan2D>& discrete_scans,

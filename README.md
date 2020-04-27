@@ -188,12 +188,12 @@ SPA优化：
   固定的submap与node会加入优化问题，但不优化
 
   对每个submap与node有
-    localslam中的观测值：(Tlw-submap‘*Tlw-node-2d)‘ * Tgw_submap' * Tgw_node_2d
-    回环检测中的观测值： Tb&b * Tgw_submap' * Tgw_node_2d
+    使用localslam中的观测值：(Tlw-submap‘*Tlw-node-2d)‘ * Tgw_submap' * Tgw_node_2d
+    使用回环检测中的观测值： Tb&b * Tgw_submap' * Tgw_node_2d
 
   对每条轨迹中相邻的node有 
-    localslam中的观测值：(Tlw_node1_2d'Tlw_node2_2d) * Tgw_node_2d' * Tgw_node_2d
-    odom的观测值： 用插值得到这两个node时刻在odom中的位姿 Todom_node1,Todom_node2，此外还要左乘 Rimu_node1,Rimu_node2
+    使用localslam中的观测值：(Tlw_node1_2d'Tlw_node2_2d) * Tgw_node_2d' * Tgw_node_2d
+    使用odom的观测值： 用插值得到这两个node时刻在odom中的位姿 Todom_node1,Todom_node2，此外还要左乘 Rimu_node1,Rimu_node2
                  (Todom_node1_2d'Todom_node2_2d) * Tgw_node_2d' * Tgw_node_2d
 
   优化后，将优化结果传播出去： 

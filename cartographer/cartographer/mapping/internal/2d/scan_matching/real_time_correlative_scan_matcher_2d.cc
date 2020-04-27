@@ -59,9 +59,9 @@ rotation_delta_cost_weight = 1e-1,
 遍历{S_r0,S_r1,..., S_rn}： i=0～n
     for mx:vx
         for my:vy
-            遍历S_r0中每一束激光 j=0～k
+            遍历S_ri中每一束激光 j=0～k
                 设S_ri中第j个激光栅格坐标为 S_ri_j
-                        sj = score[S_ri_j+(mx,my)]   ：这个score就是返回该栅格左边的概率值
+                        sj = score[S_ri_j+(mx,my)]   ：这个score就是返回该栅格的概率值
             score = sum(sj)/k
             score*=exp(-d^2) 即位姿与初值Tinit差越大，分数降的越多
 

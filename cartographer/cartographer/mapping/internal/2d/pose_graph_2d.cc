@@ -47,7 +47,7 @@ namespace mapping {
 在localslam中对往submap里插点云的node，会插入到 pose-graph 中
 
 插入node时执行：
-  trajectory-nodes-加入新node、往submap-data-加入新submpa（如果有的话）
+  trajectory-nodes-加入新node、往submap-data-加入新submap（如果有的话）
   并给 constraint bulider 发布任务：给node和submap计算约束
 
 
@@ -61,7 +61,7 @@ namespace mapping {
       初始值用该node所在submap在优化问题中优化值来推理：Tgw_node_2d = Tgw_submap1 * Tlw_submap1' * Tlw_node_2d
     3.node在imu-frame中的旋转：不变的 Rimu_node
 
-    注意：Tlw_node_2d= F3d->2d(Tlw_node*Rimu_node'),这就是localslam中ceres优化的结果（注意此时是少了一个IMU中的yaw角的）
+    注意：Tlw_node_2d= F3d->2d(Tlw_node*Rimu_node'),这就是localslam中ceres优化的结果（注意此时是少了一个IMU中的yaw角）
   
   
   设置 node 与 submap（localslam输入的两个或一个） 的联系
@@ -72,7 +72,7 @@ namespace mapping {
 
   分枝定界找约束：
     从所有完成的submap（包括不同轨迹的）中，找新node与submap约束，另外这些已完成的submap一定没有当前的node
-    找一下新完成的submap与之前的node（包括不同轨迹的，但不包括源生此submap的node）的约束
+    找一下新完成的submap与之前的node（包括不同轨迹的，但不包括源生于此submap的node）的约束
 
   往优化问题中插入足够多的node之后，就SPA（2d.lua中设置为每90个node，而纯定位中设置为每20个node）
 
@@ -105,12 +105,12 @@ SPA优化：
   固定的submap与node会加入优化问题，但不优化
 
   对每个submap与node有
-    localslam中的观测值：(Tlw-submap‘*Tlw-node-2d)‘ * Tgw_submap' * Tgw_node_2d
-    回环检测中的观测值： Tb&b * Tgw_submap' * Tgw_node_2d
+    使用localslam中的观测值：(Tlw-submap‘*Tlw-node-2d)‘ * Tgw_submap' * Tgw_node_2d
+    使用回环检测中的观测值： Tb&b * Tgw_submap' * Tgw_node_2d
 
   对每条轨迹中相邻的node有 
-    localslam中的观测值：(Tlw_node1_2d'Tlw_node2_2d) * Tgw_node_2d' * Tgw_node_2d
-    odom的观测值： 用插值得到这两个node时刻在odom中的位姿 Todom_node1,Todom_node2，此外还要左乘 Rimu_node1,Rimu_node2
+    使用localslam中的观测值：(Tlw_node1_2d'Tlw_node2_2d) * Tgw_node_2d' * Tgw_node_2d
+    使用odom的观测值： 用插值得到这两个node时刻在odom中的位姿 Todom_node1,Todom_node2，此外还要左乘 Rimu_node1,Rimu_node2
                  (Todom_node1_2d'Todom_node2_2d) * Tgw_node_2d' * Tgw_node_2d
 
   优化后，将优化结果传播出去： 

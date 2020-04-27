@@ -69,7 +69,7 @@ Imu-tracker-的两种更新情况：
 有 Todom-two'*Todom-one=[ R(two)'R(one)  R(two)'(t(one)-t(two))]
 1. 角速度无疑问就是 w = 转成旋转向量(R(two)'R(one)) /deltat
 2. 线速度有个问题就是要 求位移差(t(one)-t(two))  在 lcaol-frame中的坐标，
-   (t(one)-t(two))是odo-frame中坐标，应写成 t(odom-one)-t(odom-two)
+   (t(one)-t(two))是odom-frame中坐标，应写成 t(odom-one)-t(odom-two)
     使用对象 odometry-imu-tracker- 来推算角度
     odometry-imu-tracker- 也是在每次 Imu-tracker-更新后再复制，与extrapolation-imu-tracker-同理， 
     two时刻，odometry-imu-tracker-算出的旋转为 Rimuinit-two，而Imu-tracker-的状态为Rimuinit-t1
