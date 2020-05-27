@@ -125,12 +125,12 @@ Imu-tracker-的两种更新情况：
 ```
 可以看出来，cartographer代码还没彻底完成，不过官方好像有一段时间没更了。。。
 
-一切都是为了最后的 Sparse pose adjustment （SPA）
+主要是构建位姿图，并优化： Sparse pose adjustment （SPA）
 
-在localslam中对往submap里插点云的node，会插入到 pose-graph 中
+在localslam中 往submap里插点云的node（位姿），会插入到 pose-graph 中
 
 插入node时执行：
-  trajectory-nodes-加入新node、往submap-data-加入新submpa（如果有的话）
+  trajectory-nodes-加入新node、往submap-data-加入新submap（如果有的话）
   并给 constraint bulider 发布任务：给node和submap计算约束
 
 
@@ -144,18 +144,18 @@ Imu-tracker-的两种更新情况：
       初始值用该node所在submap在优化问题中优化值来推理：Tgw_node_2d = Tgw_submap1 * Tlw_submap1' * Tlw_node_2d
     3.node在imu-frame中的旋转：不变的 Rimu_node
 
-    注意：Tlw_node_2d= F3d->2d(Tlw_node*Rimu_node'),这就是localslam中ceres优化的结果（注意此时是少了一个IMU中的yaw角的）
+    注意：Tlw_node_2d= F3d->2d(Tlw_node*Rimu_node'),这就是localslam中ceres优化的结果（注意此时是少了一个IMU中的yaw角）
   
   
   设置 node 与 submap（localslam输入的两个或一个） 的联系
-  优化问题新增约束：即优化中边的观测值 Tlw-submap‘*Tlw-node-2d
-    * spa公式： Tij‘ * Ti' *Tj
+  优化问题新增约束：即优化中边的观测值 Tlw-submap'*Tlw-node-2d
+    * spa公式： Tij' * Ti' *Tj （cartographer用的不是这个公式，详见https://google-cartographer.readthedocs.io/en/latest/cost_functions.html）
     * 在cartographer中，Tsubmap-node_2d就是 Tij，就是边的观测值
     * Ti就是 Tgw-submap；Tj就是 Tgw-node    
 
   分枝定界找约束：
     从所有完成的submap（包括不同轨迹的）中，找新node与submap约束，另外这些已完成的submap一定没有当前的node
-    找一下新完成的submap与之前的node（包括不同轨迹的，但不包括源生此submap的node）的约束
+    找一下新完成的submap与之前的node（包括不同轨迹的，但不包括源生于此submap的node）的约束
 
   往优化问题中插入足够多的node之后，就SPA（2d.lua中设置为每90个node，而纯定位中设置为每20个node）
 

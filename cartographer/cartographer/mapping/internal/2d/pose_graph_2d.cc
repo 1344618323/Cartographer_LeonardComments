@@ -39,12 +39,12 @@
 namespace cartographer {
 namespace mapping {
 
-/*
+/*(cxn)
 可以看出来，cartographer代码还没彻底完成，不过官方好像有一段时间没更了。。。
 
-一切都是为了最后的 Sparse pose adjustment （SPA）
+主要是构建位姿图，并优化： Sparse pose adjustment （SPA）
 
-在localslam中对往submap里插点云的node，会插入到 pose-graph 中
+在localslam中 往submap里插点云的node（位姿），会插入到 pose-graph 中
 
 插入node时执行：
   trajectory-nodes-加入新node、往submap-data-加入新submap（如果有的话）
@@ -65,8 +65,8 @@ namespace mapping {
   
   
   设置 node 与 submap（localslam输入的两个或一个） 的联系
-  优化问题新增约束：即优化中边的观测值 Tlw-submap‘*Tlw-node-2d
-    * spa公式： Tij‘ * Ti' *Tj
+  优化问题新增约束：即优化中边的观测值 Tlw-submap'*Tlw-node-2d
+    * spa公式： Tij' * Ti' *Tj （cartographer用的不是这个公式，详见https://google-cartographer.readthedocs.io/en/latest/cost_functions.html）
     * 在cartographer中，Tsubmap-node_2d就是 Tij，就是边的观测值
     * Ti就是 Tgw-submap；Tj就是 Tgw-node    
 

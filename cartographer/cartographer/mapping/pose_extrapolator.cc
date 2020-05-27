@@ -75,7 +75,7 @@ Imu-tracker-的两种更新情况：
     two时刻，odometry-imu-tracker-算出的旋转为 Rimuinit-two，而Imu-tracker-的状态为Rimuinit-t1
     可以推算出机器人在two时刻时，在local-frame中的旋转：     Rlw-two= Rlw-t1* (Rimuinit-t1)'*(Rimuinit-two)
 
-  local-frame到 odom-frame的变换为 Tlw-odom,其中tlw-dom的值我们不用管，因为 (t(one)-t(two))是个差，变换后关于 tlw-dom 的部分，自然会被消掉
+  local-frame到 odom-frame的变换为 Tlw-odom,其中tlw-odom的值我们不用管，因为 (t(one)-t(two))是个差，变换后关于 tlw-dom 的部分，自然会被消掉
   也就说  Tlw-odom*(t(odom-one)-t(odom-two))= Rlw-odom*t(odom-one)-t(odom-two)
   Rlw-odom= Rlw-two* R(two)'
   所以，线速度为 {Rlw-two* R(two)'*(t(one)-t(two))}/deltat

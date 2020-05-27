@@ -66,7 +66,7 @@ class GlobalTrajectoryBuilder : public mapping::TrajectoryBuilderInterface {
     std::unique_ptr<InsertionResult> insertion_result;
 
     if (matching_result->insertion_result != nullptr) {
-      //如果是更新了submap的数据（只有通过了motionfilter之后才能更新），才能进入这个条件
+      //(cxn)如果是更新了submap的数据（只有通过了motionfilter之后才能更新），才能进入这个条件
       kLocalSlamInsertionResults->Increment();
       
       auto node_id = pose_graph_->AddNode(

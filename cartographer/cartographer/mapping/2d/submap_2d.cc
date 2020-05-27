@@ -115,7 +115,7 @@ void Submap2D::InsertRangeData(
     const RangeDataInserterInterface* range_data_inserter) {
   CHECK(grid_);
   CHECK(!finished());
-  //(cxn)用预计算的表跟新 栅格是障碍物 的成本值
+  //(cxn)用预计算的表更新 栅格是障碍物 的成本值
   range_data_inserter->Insert(range_data, grid_.get());
   set_num_range_data(num_range_data() + 1);
 }
@@ -143,7 +143,7 @@ std::vector<std::shared_ptr<Submap2D>> ActiveSubmaps2D::submaps() const {
 int ActiveSubmaps2D::matching_index() const { return matching_submap_index_; }
 
 void ActiveSubmaps2D::InsertRangeData(const sensor::RangeData& range_data) {
-  //(cxn)连个submap插入雷达数据
+  //(cxn)两个submap插入雷达数据
   for (auto& submap : submaps_) {
     submap->InsertRangeData(range_data, range_data_inserter_.get());
   }

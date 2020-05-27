@@ -25,6 +25,16 @@ namespace cartographer {
 namespace mapping {
 namespace optimization {
 
+/*(cxn)
+  计算误差的公式不是 T_{ij}^{m}'*T_{i}'*T_{j}，而是 https://google-cartographer.readthedocs.io/en/latest/cost_functions.html
+  
+  首先 T_{ij} = [R_{i}'R_{2}  R_{1}'(t_{2}-t_{1}); 0 1]
+  err(i,j)= [T_{ij}^m.transpose() - T_{ij}.transpose(); T_{ij}.rotation()'*T_{ij}^m.rotation()]
+  注意旋转误差要化为 旋转向量
+
+  若是2D的 err(i,j)=[T_{ij}^m.transpose() - T_{ij}.transpose(); T_{ij}^m.theta - (T_{j}.theta-T_{i}.theta)]
+*/
+
 template <typename T>
 static std::array<T, 3> ComputeUnscaledError(
     const transform::Rigid2d& relative_pose, const T* const start,

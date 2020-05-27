@@ -35,7 +35,7 @@ namespace scan_matching {
 
 /*(cxn)
 优化函数是
-T = min { weight^2/K * sum_k[(Msmooth(T*hk))^2]}
+T = min { (weight^2)/K * sum_k[(Msmooth(T*hk))^2]}
 与论文中相比，代码中用的是 网格是障碍物的成本值，而不是概率值（翻了过来）
 T*hk能够算出一个坐标，Msmooth表示使用双三次线性插值法，找到坐标对应的概率值
 对于未知的网格返回的值是0，而对于超出submap的网格返回的值为0.9

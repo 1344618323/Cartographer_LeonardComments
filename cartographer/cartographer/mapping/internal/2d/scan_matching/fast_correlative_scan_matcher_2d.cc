@@ -106,7 +106,7 @@ y先固定，newgrid(0，y)=submap(0,y)
         newgrid(40,y)=max[ submap(37,y),submap(38,y),submap(39,y)]
         newgrid(41,y)=max[ submap(38,y),submap(39,y)]
         newgrid(42，y)=submap(39,y)
-然后x再规定，对y作同样的操作
+然后x再固定，对y作同样的操作
 */
 PrecomputationGrid2D::PrecomputationGrid2D(
     const Grid2D& grid, const CellLimits& limits, const int width,

@@ -71,7 +71,7 @@ void CeresScanMatcher2D::Match(const Eigen::Vector2d& target_translation,
   ceres::Problem problem;
   CHECK_GT(options_.occupied_space_weight(), 0.);
 
-  //(cxn)优化函数是 argmin(T) { weight^2/K * sum_k[(Msmooth(T*hk))^2]} 2d.lua中：weight=20.0
+  //(cxn)优化函数是 argmin(T) { (weight^2)/K * sum_k[(Msmooth(T*hk))^2]} 2d.lua中：weight=20.0
   problem.AddResidualBlock(
       OccupiedSpaceCostFunction2D::CreateAutoDiffCostFunction(
           options_.occupied_space_weight() /
