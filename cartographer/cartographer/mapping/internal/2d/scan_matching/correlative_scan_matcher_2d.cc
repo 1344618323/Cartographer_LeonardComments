@@ -123,7 +123,7 @@ std::vector<sensor::PointCloud> GenerateRotatedScans(
 
 // 这个函数用来平移点云，
 // 输入的是旋转过的点云     {转-20度的点云， 转 -20+theta的点云， ... ,转20度的点云}
-// 对这些点云依次按输入参数 initial-translation 平移，得到栅格坐标
+// 对这些点云依次按输入参数 initial-translation 平移，得到栅格坐标（x，y都是整数的坐标）
 // 栅格坐标 {转-20度平移后的点云， 转 -20+theta平移后的点云， ... ,转20度平移后的点云}
 std::vector<DiscreteScan2D> DiscretizeScans(
     const MapLimits& map_limits, const std::vector<sensor::PointCloud>& scans,

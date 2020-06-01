@@ -1,12 +1,19 @@
 # Leonard Chen 的注释
 
-主要注释了源码中关于 2D SLAM 的部分，3D部分有空再学习吧。
-
-再次膜拜写出这套代码的大佬们！
-
 <table><td bgcolor=yellow><font color=black>一点思考：Cartographer在检测回环的时候，其实就是只要一帧数据与submap匹配上了就是回环，个人感觉这里可以加一个连续性检测，就像ORB-SLAM一样，连续几帧与同一个submap匹配上了，我才算一个回环，会不会更鲁棒一些呢？</font></td></tr></table>
 
 以下是学习过程中随手写的笔记，比较乱。
+
+- [Leonard Chen 的注释](#leonard-chen-的注释)
+  - [LOCAL 2D SLAM](#local-2d-slam)
+  - [POSE EXTRAPOLATOR](#pose-extrapolator)
+  - [GLOBAL 2D SLAM](#global-2d-slam)
+  - [LOCAL 3D SLAM](#local-3d-slam)
+  - [GLOBAL 3D SLAM](#global-3d-slam)
+  - [cartographer_ros](#cartographer_ros)
+  - [配置文件](#配置文件)
+    - [backup_2d.lua的配置](#backup_2dlua的配置)
+    - [backup_3d.lua的配置](#backup_3dlua的配置)
 
 ## LOCAL 2D SLAM
 ```
@@ -213,11 +220,15 @@ SPA优化：
 
   每次SPA优化之后，会对 轨迹A 中的submap缩减，减到3个以内
 ```
-
 ---
 
+## LOCAL 3D SLAM
 
-## cartographer_ros中
+
+## GLOBAL 3D SLAM
+
+
+## cartographer_ros
 这里大概写下ros中传感器数据是怎么调度到cartgrapher中的吧，写得比较乱，看得也不太明白
 
 ```
@@ -328,7 +339,7 @@ ros传感器数据回调
 
 配置文件太多了，跳来跳去的奇烦，放到这里方面对照
 
-看下backup_2d.lua的配置
+### backup_2d.lua的配置
 
 node_options中的内容
 ```
@@ -520,4 +531,74 @@ odometry_sampling_ratio = 1.,
 fixed_frame_pose_sampling_ratio = 1.,
 imu_sampling_ratio = 1.,
 landmarks_sampling_ratio = 1.,
+```
+
+
+### backup_3d.lua的配置
+
+trajectory_option
+```
+MAX_3D_RANGE = 60.
+
+TRAJECTORY_BUILDER_3D = {
+  min_range = 1.,
+  max_range = MAX_3D_RANGE,
+  num_accumulated_range_data = 1,
+  voxel_filter_size = 0.15,
+
+  high_resolution_adaptive_voxel_filter = {
+    max_length = 2.,
+    min_num_points = 150,
+    max_range = 15.,
+  },
+
+  low_resolution_adaptive_voxel_filter = {
+    max_length = 4.,
+    min_num_points = 200,
+    max_range = MAX_3D_RANGE,
+  },
+
+  use_online_correlative_scan_matching = false,
+  real_time_correlative_scan_matcher = {
+    linear_search_window = 0.15,
+    angular_search_window = math.rad(1.),
+    translation_delta_cost_weight = 1e-1,
+    rotation_delta_cost_weight = 1e-1,
+  },
+
+  ceres_scan_matcher = {
+    occupied_space_weight_0 = 1.,
+    occupied_space_weight_1 = 6.,
+    translation_weight = 5.,
+    rotation_weight = 4e2,
+    only_optimize_yaw = false,
+    ceres_solver_options = {
+      use_nonmonotonic_steps = false,
+      max_num_iterations = 12,
+      num_threads = 1,
+    },
+  },
+
+  motion_filter = {
+    max_time_seconds = 0.5,
+    max_distance_meters = 0.1,
+    max_angle_radians = 0.004,
+  },
+
+  imu_gravity_time_constant = 10.,
+  rotational_histogram_size = 120,
+
+  submaps = {
+    high_resolution = 0.10,
+    high_resolution_max_range = 20.,
+    low_resolution = 0.45,
+    num_range_data = 160,
+    range_data_inserter = {
+      hit_probability = 0.55,
+      miss_probability = 0.49,
+      num_free_space_voxels = 2,
+    },
+  },
+}
+
 ```

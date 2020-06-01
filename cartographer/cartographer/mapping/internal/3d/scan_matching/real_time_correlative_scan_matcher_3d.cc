@@ -35,10 +35,14 @@ float RealTimeCorrelativeScanMatcher3D::Match(
     const transform::Rigid3d& initial_pose_estimate,
     const sensor::PointCloud& point_cloud, const HybridGrid& hybrid_grid,
     transform::Rigid3d* pose_estimate) const {
+  // 参数 point-cloud 是以base-link为坐标系的 坐标
   CHECK_NOTNULL(pose_estimate);
   float best_score = -1.f;
   for (const transform::Rigid3f& transform : GenerateExhaustiveSearchTransforms(
            hybrid_grid.resolution(), point_cloud)) {
+    
+    //transform 是暴力遍历出来的 偏移位姿变换， 
+    //candidate与transform一一对应，表示候选的机器人在submap中位姿 Tsubmap-baselink
     const transform::Rigid3f candidate =
         initial_pose_estimate.cast<float>() * transform;
     const float score = ScoreCandidate(

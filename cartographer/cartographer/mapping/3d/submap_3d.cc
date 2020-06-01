@@ -263,12 +263,15 @@ void Submap3D::InsertRangeData(const sensor::RangeData& range_data,
                                const RangeDataInserter3D& range_data_inserter,
                                const int high_resolution_max_range) {
   CHECK(!finished());
+  //求出点云在submap坐标系中坐标
   const sensor::RangeData transformed_range_data = sensor::TransformRangeData(
       range_data, local_pose().inverse().cast<float>());
+  //将点云插入高分辨率网格，要滤掉长度超出范围的点云，避免高分辨率网格扩展得过大
   range_data_inserter.Insert(
       FilterRangeDataByMaxRange(transformed_range_data,
                                 high_resolution_max_range),
       high_resolution_hybrid_grid_.get());
+  //将点云插入低分辨率网格
   range_data_inserter.Insert(transformed_range_data,
                              low_resolution_hybrid_grid_.get());
   set_num_range_data(num_range_data() + 1);

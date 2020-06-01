@@ -268,6 +268,7 @@ void OptimizationProblem3D::Solve(
   ceres::Problem::Options problem_options;
   ceres::Problem problem(problem_options);
 
+  //默认配置下不会配置fix-z-in-3d，返回nullptr
   const auto translation_parameterization =
       [this]() -> std::unique_ptr<ceres::LocalParameterization> {
     return options_.fix_z_in_3d()
@@ -290,6 +291,7 @@ void OptimizationProblem3D::Solve(
       first_submap = false;
       // Fix the first submap of the first trajectory except for allowing
       // gravity alignment.
+      // 将第一张submap的yaw与平移固定，但pitch与roll会优化
       C_submaps.Insert(
           submap_id_data.id,
           CeresPose(submap_id_data.data.global_pose,
@@ -314,6 +316,7 @@ void OptimizationProblem3D::Solve(
           C_submaps.at(submap_id_data.id).translation());
     }
   }
+
   for (const auto& node_id_data : node_data_) {
     const bool frozen =
         frozen_trajectories.count(node_id_data.id.trajectory_id) != 0;
@@ -328,6 +331,7 @@ void OptimizationProblem3D::Solve(
           C_nodes.at(node_id_data.id).translation());
     }
   }
+
   // Add cost functions for intra- and inter-submap constraints.
   for (const Constraint& constraint : constraints) {
     problem.AddResidualBlock(
@@ -341,11 +345,21 @@ void OptimizationProblem3D::Solve(
         C_nodes.at(constraint.node_id).rotation(),
         C_nodes.at(constraint.node_id).translation());
   }
+
   // Add cost functions for landmarks.
   AddLandmarkCostFunctions(landmark_nodes, freeze_landmarks, node_data_,
                            &C_nodes, &C_landmarks, &problem);
+
   // Add constraints based on IMU observations of angular velocities and
   // linear acceleration.
+  //(cxn) 若配置时希望对重力方向也有优化，则
+  // 1. 对于同一轨迹上任意两个相邻node，有Twi、Twj，相互之前的旋转为Rij，可以对两个node的旋转与IMU的角度偏置R(imu-calibration)
+  // 2. 对于同一轨迹上任意三个相邻node，有Twi、Twj、Twk，我们可以求出 （j到k的速度与i到j的速度的差）deltaV，这个向量的坐标系是global
+  //    用IMU可以算出这个值的观测值： 我们可以算出 时刻t((i+j)/2)到时刻t((j+k)/2)的速度差，这个向量的坐标系是 t((i+j)/2)时刻的IMU坐标系，
+  //    经过一系列的折腾，把他换算到 t(j)时刻的IMU坐标系 中，得到向量 (delta-velocity)
+  //    然后 (delta-velocity) 需要转到 global 坐标系中，也就是 左乘 Rwj*R(imu-calibration)，此时还要注意向量中还包括重力加速度积分部分
+  //    Rwj*R(imu-calibration)* (delta-velocity) - (gravity-constant)*(0;0;1)*0.5*(t(k)-2t(j)+t(i)) ，最终结果与 deltaV 做差
+  //    优化 R(imu-calibration)，(gravity-constant),Rwj,ti,tj,tk
   if (!options_.fix_z_in_3d()) {
     for (auto node_it = node_data_.begin(); node_it != node_data_.end();) {
       const int trajectory_id = node_it->id.trajectory_id;
@@ -385,7 +399,9 @@ void OptimizationProblem3D::Solve(
         auto imu_it2 = imu_it;
         const IntegrateImuResult<double> result = IntegrateImu(
             imu_data, first_node_data.time, second_node_data.time, &imu_it);
+
         const auto next_node_it = std::next(node_it);
+        
         if (next_node_it != trajectory_end &&
             next_node_it->id.node_index == second_node_id.node_index + 1) {
           const NodeId third_node_id = next_node_it->id;
@@ -423,6 +439,7 @@ void OptimizationProblem3D::Solve(
               &trajectory_data.gravity_constant,
               trajectory_data.imu_calibration.data());
         }
+        //对于相邻的两个node：Ti、Tj，通过陀螺仪可以积分得到 Rij
         problem.AddResidualBlock(
             RotationCostFunction3D::CreateAutoDiffCostFunction(
                 options_.rotation_weight(), result.delta_rotation),
@@ -433,6 +450,8 @@ void OptimizationProblem3D::Solve(
     }
   }
 
+  //(cxn) 若配置时不希望对重力方向有优化，则使用localslam中求得的相邻node的位姿变换，以及odom提供的位姿变换作为观测量
+  // 优化同一轨迹中任意两个相邻node的全局位姿
   if (options_.fix_z_in_3d()) {
     // Add penalties for violating odometry (if available) and changes between
     // consecutive nodes.
@@ -545,6 +564,7 @@ void OptimizationProblem3D::Solve(
           C_nodes.at(node_id).rotation(), C_nodes.at(node_id).translation());
     }
   }
+  
   // Solve.
   ceres::Solver::Summary summary;
   ceres::Solve(

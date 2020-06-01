@@ -65,6 +65,9 @@ bool IsDefaultValue(const std::vector<TElementType>& v) {
 
 // A flat grid of '2^kBits' x '2^kBits' x '2^kBits' voxels storing values of
 // type 'ValueType' in contiguous memory. Indices in each dimension are 0-based.
+// (cxn) 构建“2^kBits”x“2^kBits”x“2^kBits”体素的平面网格，在连续内存中存储“ValueType”类型的值；
+// 若kBit=3，则是构建 2^3*2^3*2^3 的网络，包括了512个值，存储在一个一维的数组中；
+// 同时，类中提供了将三维坐标转换为一维索引的方法，用于查询相应三维坐标的网格值。
 template <typename TValueType, int kBits>
 class FlatGrid {
  public:
@@ -85,6 +88,7 @@ class FlatGrid {
 
   // Returns the value stored at 'index', each dimension of 'index' being
   // between 0 and grid_size() - 1.
+  // 将三维坐标转换过为一维索引，在网格中找到相应的值
   ValueType value(const Eigen::Array3i& index) const {
     return cells_[ToFlatIndex(index, kBits)];
   }
@@ -140,6 +144,9 @@ class FlatGrid {
 // A grid consisting of '2^kBits' x '2^kBits' x '2^kBits' grids of type
 // 'WrappedGrid'. Wrapped grids are constructed on first access via
 // 'mutable_value()'.
+// 存储 `2^kBits' x '2^kBits' x '2^kBits` 个封装网格（WrappedGrid） 的 嵌套网格（NestedGrid）
+// 若kBits赋值为3，并且 封装网格 的大小也是（8*8*8），那么这个嵌套网格就一共存储了 64*64*64 个值。
+// 只有在嵌套网格调用 'mutable_value()' 的情况下，才可能建立 封装网格对象
 template <typename WrappedGrid, int kBits>
 class NestedGrid {
  public:
@@ -150,6 +157,7 @@ class NestedGrid {
 
   // Returns the value stored at 'index', each dimension of 'index' being
   // between 0 and grid_size() - 1.
+  // 若kBits取值为3，且WrappedGrid的kBits取值也为3，则index的取值范围是 (0~63,0~63,0~63)
   ValueType value(const Eigen::Array3i& index) const {
     const Eigen::Array3i meta_index = GetMetaIndex(index);
     const WrappedGrid* const meta_cell =
@@ -247,6 +255,16 @@ class NestedGrid {
 // grids are constructed on first access via 'mutable_value()'. If necessary,
 // the grid grows to twice the size in each dimension. The range of indices is
 // (almost) symmetric around the origin, i.e. negative indices are allowed.
+/*(cxn)
+  初始化时，是建立 2*2*2 个封装网格（代码中用的是NestedGrid，存储64*64*64个值，因此初始化时就是128*128*128个值的大网格）
+  后面大网格会根据需求每个维度×2式地扩张，扩展到 4*4*4、8*8*8、...
+  小结：代码中用的是 DynamicGrid<NestedGrid<FlatGrid<ValueType, 3>, 3>>
+  也就是说 FlatGrid<ValueType, 3> 中的 8*8*8=512 个值的网格是一次性分配的
+  NestedGrid<FlatGrid<ValueType, 3>, 3> 包含了 8*8*8=512个FlatGrid。
+    该类对象只有用到了相应的FlatGrid，才会新建一个FlatGrid对象
+    也就是说一个 NestedGrid 对象最多存储 512×512 个值
+  DynamicGrid最初新建了2*2*2个NestedGrid对象，后面根据需求会以 4*4*4、8*8*8、... 地形式扩展出更多的NestedGrid对象
+*/
 template <typename WrappedGrid>
 class DynamicGrid {
  public:
@@ -410,6 +428,8 @@ template <typename ValueType>
 using GridBase = DynamicGrid<NestedGrid<FlatGrid<ValueType, 3>, 3>>;
 
 // Represents a 3D grid as a wide, shallow tree.
+// DynamicGrid<NestedGrid<FlatGrid<ValueType, 3>, 3>>最初新建了2*2*2个NestedGrid对象，共存储 8×512×512=(2*8*8)^3个值
+// 若分辨率设置为 0.1m，存储的范围为 ([-6.4~6.4m],[-6.4~6.4m],[-6.4~6.4m])
 template <typename ValueType>
 class HybridGridBase : public GridBase<ValueType> {
  public:

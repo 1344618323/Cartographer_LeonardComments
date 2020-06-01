@@ -35,6 +35,27 @@ namespace mapping {
 namespace scan_matching {
 namespace {
 
+/*(cxn)
+分枝定界scan-match 主要是为了 找到 submap 与 node 的相对位姿 Tsubmap-node （有时会给一个初值 Tinit）
+这里简单解释下，领会精神即可，具体看代码
+1. submap的多分辨率地图生成
+  如 原submap大小为40*40，分辨率为1。要生成分辨率为1/2的地图，则新submap大小为41*41，dst[1][1]=max(src[0][0],src[1][0],src[0][1],src[1][1])
+  生成7层
+2. 对 node 点云 预旋转：原点云 scan，按旋转搜索窗口旋转，并按 Tinit的平移量平移，得到点云在源submap分辨率下的栅格坐标 vector<vector<array2i>> vscan
+  注意在分枝定界scan-match中，无论是什么分辨率，旋转的搜索窗口大小都是不变的
+3. 对不同分辨率，有不同的平移搜索窗口。如要求搜索范围为[-7m～7m]，则在分辨为1m的地图中，平移窗口为[-7,-6,-5,...,7]，也是整数
+4. 最低分辨率下
+  for(v:vscan):
+    按 x 最低分辨率下平移窗口平移 v，得到vx
+      按 y最低分辨率下平移窗口平移 vx，得到vxy
+        for (pxy:vxy):
+            找pxy在最低分辨率submap下的得分
+        可以得到总分 sumPxy
+5. 分枝定界
+*/
+
+
+
 // A collection of values which can be added and later removed, and the maximum
 // of the current values in the collection can be retrieved.
 // All of it in (amortized) O(1).
@@ -92,7 +113,6 @@ CreateFastCorrelativeScanMatcherOptions2D(
 
 /*(cxn)
 栅格地图的构造函数
-这个函数就是在原始地图的基础上　生成分辨率位width*origin_resolution的地图
 若submap 大小为 40*40，width=4
 则新生成的网格newgrid大小为 43*43
 y先固定，newgrid(0，y)=submap(0,y)
@@ -274,9 +294,11 @@ bool FastCorrelativeScanMatcher2D::MatchWithSearchParameters(
       transform::Rigid3f::Rotation(Eigen::AngleAxisf(
           initial_rotation.cast<float>().angle(), Eigen::Vector3f::UnitZ())));
   
+  //考虑到分支定界中 angle 的搜索窗口是大小不变的，这里向对点云做旋转，得到数组点云
   const std::vector<sensor::PointCloud> rotated_scans =
       GenerateRotatedScans(rotated_point_cloud, search_parameters);
   
+  //对每一旋转得到的点云组：按 位移初值 平移，并得到平移后点云的栅格坐标 
   const std::vector<DiscreteScan2D> discrete_scans = DiscretizeScans(
       limits_, rotated_scans,
       Eigen::Translation2f(initial_pose_estimate.translation().x(),

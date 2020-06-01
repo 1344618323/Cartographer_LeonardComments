@@ -43,6 +43,7 @@ class RotationDeltaCostFunctor3D {
   template <typename T>
   bool operator()(const T* const rotation_quaternion, T* residual) const {
     std::array<T, 4> delta;
+    //四元数的乘法（就是两个旋转矩阵相乘的结果）
     common::QuaternionProduct(target_rotation_inverse_, rotation_quaternion,
                               delta.data());
     // Will compute the squared norm of the imaginary component of the delta

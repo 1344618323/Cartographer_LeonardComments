@@ -39,7 +39,7 @@ PointCloud FilterByMaxRange(const PointCloud& point_cloud,
 PointCloud AdaptivelyVoxelFiltered(
     const proto::AdaptiveVoxelFilterOptions& options,
     const PointCloud& point_cloud) {
-      //(cxn)1.如果点云本来就少，放回源数据就少了
+      //(cxn)1.如果点云本来就少，返回源数据就少了
       //2.用尺寸比较大的体素滤波器（0.5m），若点还足够多，返回滤波结果
       //3.不断对highlength从maxlenghth开始循环二分，直到分到 highlength=0.01*maxlength，lowlength=highlength/2
       // 若找到了能得到足够多点云的lowlength，就用二分法在 [lowlength,highlength] 中找最佳尺寸
@@ -63,7 +63,7 @@ PointCloud AdaptivelyVoxelFiltered(
       // Binary search to find the right amount of filtering. 'low_length' gave
       // a sufficiently dense 'result', 'high_length' did not. We stop when the
       // edge length is at most 10% off.
-      //(cxn)二分法找最佳体素滤波尺寸，知道high是low的1.1倍为止
+      //(cxn)二分法找最佳体素滤波尺寸，直到high是low的1.1倍为止
       while ((high_length - low_length) / low_length > 1e-1f) {
         const float mid_length = (low_length + high_length) / 2.f;
         const PointCloud candidate =

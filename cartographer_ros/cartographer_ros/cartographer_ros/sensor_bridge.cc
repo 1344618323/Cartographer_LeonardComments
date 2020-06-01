@@ -177,6 +177,7 @@ void SensorBridge::HandleMultiEchoLaserScanMessage(
 void SensorBridge::HandlePointCloud2Message(
     const std::string& sensor_id,
     const sensor_msgs::PointCloud2::ConstPtr& msg) {
+  //(cxn)ros中提供了将sensor-msgs::PointCloud2转成PCL格式的函数
   pcl::PointCloud<pcl::PointXYZ> pcl_point_cloud;
   pcl::fromROSMsg(*msg, pcl_point_cloud);
   carto::sensor::TimedPointCloud point_cloud;
@@ -241,7 +242,7 @@ void SensorBridge::HandleRangefinder(
 
   //(cxn)算出time时刻 T(baselink->laserlink)
   //sensor_to_tracking->translation()就是雷达原点在baselink坐标系下的坐标
-  // 点云也左成 T(baselink->laserlink)，得到baselink坐标系下的坐标
+  // 点云也左乘 T(baselink->laserlink)，得到baselink坐标系下的坐标
   const auto sensor_to_tracking =
       tf_bridge_.LookupToTracking(time, CheckNoLeadingSlash(frame_id));
   if (sensor_to_tracking != nullptr) {

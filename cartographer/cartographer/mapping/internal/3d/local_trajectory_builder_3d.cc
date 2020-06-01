@@ -27,6 +27,29 @@
 #include "cartographer/mapping/proto/scan_matching//real_time_correlative_scan_matcher_options.pb.h"
 #include "glog/logging.h"
 
+/*cxn
+2d版local-slam的延伸，写下不同的地方
+
+* correlative-scan-match:
+  2d中为了加速，先对点云做二维旋转，得到 r 组点云，再分别平移，得到 r*x*y组 点云，然后分别算得分
+    先旋转的原因在于只需要调用r×n次 sin、cos函数（n为点云个数）；若先平移再旋转则要调用 x*y*r*n次 sin、cos函数
+  3d中就纯粹暴力地算出 x*y*z*rx*ry*rz 种刚体变换矩阵，然后分别乘到点云上算得分，（注意旋转 用的是 旋转向量 ，而不是sin、cos）
+    代码实现中，估计作者觉得也没用到三角函数，纯粹都是线性代数，就没必要向2d那样调整顺序了。
+
+* submap3d的实现
+  3d由两张不同分辨率的hybridMap组成：高分辨率地图是不管的（如0.1m），低分辨率地图（如0.45m）
+    其中，高分辨率地图不会管距离比较远的点（如20m外的点）
+    hybridMap实现了3d栅格地图，为了节约内存，只会对用到的cell申请内存（类似八叉树），详见 bybrid_grid.h
+  2d中新建submap在localframe中的位姿为 (机器人在localframe中的 x，y; 旋转角度设置为0)，2维地图的平面只要与水平面平行就是了
+  3d中新建submap的位姿：平移量依然是 (机器人在localframe中的 x，y，z)，而旋转是IMU测出的旋转（机器人在IMU坐标系下的旋转）
+
+* ceres-scan-match
+  与2d思想一致，基于非线性优化的扫描匹配，因此要对栅格地图做插值才能求导
+  作者提到，由于ceres-scan-match的性能原因，才给submap3d加了高低分辨率的设定
+  且在默认配置文件中，costFunction中低分辨率地图的权值比高分辨率地图的权值高
+  我的理解是：3d中，优化非常消耗时间，低分辨率地图 较高的权值能让优化算法较快地迭代出 一个较好的位姿，然后高分辨率地图再去进一步优化
+*/
+
 namespace cartographer {
 namespace mapping {
 
@@ -149,6 +172,7 @@ LocalTrajectoryBuilder3D::AddRangeData(
   }
   ++num_accumulated_;
 
+  //3d.lua中 numaccumulatedrangedata=160
   if (num_accumulated_ >= options_.num_accumulated_range_data()) {
     num_accumulated_ = 0;
     transform::Rigid3f current_pose =
@@ -160,6 +184,7 @@ LocalTrajectoryBuilder3D::AddRangeData(
         sensor::VoxelFilter(options_.voxel_filter_size())
             .Filter(accumulated_range_data_.misses)};
     return AddAccumulatedRangeData(
+        //(cxn)该函数中第二个参数是去畸变后的点云数据（RangeData对象），这些RangeData对象的origin都是(0,0,0): [R' -R't; 0 1]*[t;1]=[0;0;0]
         time, sensor::TransformRangeData(filtered_range_data,
                                          current_pose.inverse()));
   }
@@ -178,6 +203,8 @@ LocalTrajectoryBuilder3D::AddAccumulatedRangeData(
   const transform::Rigid3d pose_prediction =
       extrapolator_->ExtrapolatePose(time);
 
+  // (cxn)可以注意到，submap2d中，是将点云直接以local_frame中的坐标（确切地说还有旋转） 插入到submap中的
+  // 而在submap3d中，是将点云以 在submap坐标系中坐标 插入到 submap中的，所以求匹配位姿初值时，要左乘submap位姿的逆
   std::shared_ptr<const mapping::Submap3D> matching_submap =
       active_submaps_.submaps().front();
   transform::Rigid3d initial_ceres_pose =
@@ -190,9 +217,12 @@ LocalTrajectoryBuilder3D::AddAccumulatedRangeData(
     LOG(WARNING) << "Dropped empty high resolution point cloud data.";
     return nullptr;
   }
+  
+  // (cxn)调用correlative-scan-match
   if (options_.use_online_correlative_scan_matching()) {
     // We take a copy since we use 'initial_ceres_pose' as an output argument.
     const transform::Rigid3d initial_pose = initial_ceres_pose;
+    // 可以发现只用高分率网格来做 correlative-scan-math
     double score = real_time_correlative_scan_matcher_->Match(
         initial_pose, high_resolution_point_cloud_in_tracking,
         matching_submap->high_resolution_hybrid_grid(), &initial_ceres_pose);
@@ -211,6 +241,8 @@ LocalTrajectoryBuilder3D::AddAccumulatedRangeData(
     LOG(WARNING) << "Dropped empty low resolution point cloud data.";
     return nullptr;
   }
+
+  // (cxn)调用 ceres-scan-match，高、低分率的地图都会用于优化
   ceres_scan_matcher_->Match(
       (matching_submap->local_pose().inverse() * pose_prediction).translation(),
       initial_ceres_pose,
@@ -219,6 +251,7 @@ LocalTrajectoryBuilder3D::AddAccumulatedRangeData(
        {&low_resolution_point_cloud_in_tracking,
         &matching_submap->low_resolution_hybrid_grid()}},
       &pose_observation_in_submap, &summary);
+
   kCeresScanMatcherCostMetric->Observe(summary.final_cost);
   double residual_distance = (pose_observation_in_submap.translation() -
                               initial_ceres_pose.translation())
@@ -227,18 +260,23 @@ LocalTrajectoryBuilder3D::AddAccumulatedRangeData(
   double residual_angle = pose_observation_in_submap.rotation().angularDistance(
       initial_ceres_pose.rotation());
   kScanMatcherResidualAngleMetric->Observe(residual_angle);
+
   const transform::Rigid3d pose_estimate =
       matching_submap->local_pose() * pose_observation_in_submap;
   extrapolator_->AddPose(time, pose_estimate);
   const Eigen::Quaterniond gravity_alignment =
       extrapolator_->EstimateGravityOrientation(time);
-
+  
+  // 计算点云在localframe中的坐标 plocal = Tlocal-baselink*pbaselink    
   sensor::RangeData filtered_range_data_in_local = sensor::TransformRangeData(
       filtered_range_data_in_tracking, pose_estimate.cast<float>());
+
+  // 插点云，与2d一样，要经过motion-filter才能插点云到submap
   std::unique_ptr<InsertionResult> insertion_result = InsertIntoSubmap(
       time, filtered_range_data_in_local, filtered_range_data_in_tracking,
       high_resolution_point_cloud_in_tracking,
       low_resolution_point_cloud_in_tracking, pose_estimate, gravity_alignment);
+  
   auto duration = std::chrono::steady_clock::now() - accumulation_started_;
   kLocalSlamLatencyMetric->Set(
       std::chrono::duration_cast<std::chrono::seconds>(duration).count());
@@ -278,12 +316,16 @@ LocalTrajectoryBuilder3D::InsertIntoSubmap(
   }
   active_submaps_.InsertRangeData(filtered_range_data_in_local,
                                   gravity_alignment);
+
+  // (cxn) Pbaselink 为去畸变后 点云(参考系为baselink)，R为 baselink 在 IMU系下 旋转
+  // 对 R×Pbaselink得到的点云 统计直方图：[0,pi]分成了120个bin，每个bin上都有float权值
   const Eigen::VectorXf rotational_scan_matcher_histogram =
       scan_matching::RotationalScanMatcher::ComputeHistogram(
           sensor::TransformPointCloud(
               filtered_range_data_in_tracking.returns,
               transform::Rigid3f::Rotation(gravity_alignment.cast<float>())),
           options_.rotational_histogram_size());
+
   return common::make_unique<InsertionResult>(
       InsertionResult{std::make_shared<const mapping::TrajectoryNode::Data>(
                           mapping::TrajectoryNode::Data{

@@ -32,6 +32,11 @@ namespace scan_matching {
 // This class is templated to work with the autodiff that Ceres provides.
 // For this reason, it is also important that the interpolation scheme be
 // continuously differentiable.
+/*(cxn)
+3D的栅格地图使用 ‘三’ ‘三次插值’：就是用一个立方体的8个点来进行三维的三次插值
+一维的三次插值要有4个约束：在这里就是 端点的cost值（2个约束），端点的cost值导数都设置为0（2个约束）
+推广到3维：先对z方向插值，得到4个一维的三次多项式；再对y方向插值，得到2个二维的三次多项式；在对x方向插值，得到1个三维的三次多项式
+*/
 class InterpolatedGrid {
  public:
   explicit InterpolatedGrid(const HybridGrid& hybrid_grid)
