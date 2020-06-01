@@ -585,6 +585,7 @@ void PoseGraph3D::RunFinalOptimization() {
   WaitForAllComputations();
 }
 
+// spa优化结束后，输出的是 以 INTRA-SUBMAP 约束链接的 node 与 submap，在优化后的残差
 void PoseGraph3D::LogResidualHistograms() const {
   common::Histogram rotational_residual;
   common::Histogram translational_residual;

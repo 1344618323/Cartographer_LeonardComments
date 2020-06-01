@@ -28,7 +28,7 @@
 #include "glog/logging.h"
 
 /*cxn
-2d版local-slam的延伸，写下不同的地方
+local-3d-slam 是 local-2d-slam 的延伸，写下不同的地方
 
 * correlative-scan-match:
   2d中为了加速，先对点云做二维旋转，得到 r 组点云，再分别平移，得到 r*x*y组 点云，然后分别算得分
@@ -37,10 +37,10 @@
     代码实现中，估计作者觉得也没用到三角函数，纯粹都是线性代数，就没必要向2d那样调整顺序了。
 
 * submap3d的实现
-  3d由两张不同分辨率的hybridMap组成：高分辨率地图是不管的（如0.1m），低分辨率地图（如0.45m）
+  3d由两张不同分辨率的hybridMap组成：高分辨率地图（如0.1m），低分辨率地图（如0.45m）
     其中，高分辨率地图不会管距离比较远的点（如20m外的点）
     hybridMap实现了3d栅格地图，为了节约内存，只会对用到的cell申请内存（类似八叉树），详见 bybrid_grid.h
-  2d中新建submap在localframe中的位姿为 (机器人在localframe中的 x，y; 旋转角度设置为0)，2维地图的平面只要与水平面平行就是了
+  2d中新建submap在localframe中的位姿为 (新建submap时机器人在localframe中的 x，y; 旋转角度设置为0)，2维地图的平面只要与水平面平行就是了
   3d中新建submap的位姿：平移量依然是 (机器人在localframe中的 x，y，z)，而旋转是IMU测出的旋转（机器人在IMU坐标系下的旋转）
 
 * ceres-scan-match

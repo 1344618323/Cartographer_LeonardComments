@@ -40,8 +40,6 @@ namespace cartographer {
 namespace mapping {
 
 /*(cxn)
-可以看出来，cartographer代码还没彻底完成，不过官方好像有一段时间没更了。。。
-
 主要是构建位姿图，并优化： Sparse pose adjustment （SPA）
 
 在localslam中 往submap里插点云的node（位姿），会插入到 pose-graph 中
