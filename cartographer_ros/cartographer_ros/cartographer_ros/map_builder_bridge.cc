@@ -362,6 +362,12 @@ visualization_msgs::MarkerArray MapBuilderBridge::GetLandmarkPosesList() {
   return landmark_poses_list;
 }
 
+//(cxn)用于在rviz中显示约束连线  数据类型：visualization_msgs::Marker::LINE_LIST
+//有6种namespace：
+//    node在submpa内构建的  (Intra constraints)：  两个顶点为  T(global-submap).t()  (T(global-submap)* T(submap-node)).t()    [注意第二个量就是posegraph中的观测量zij]
+//                ...       (Intra residuals)：  两个顶点为  (T(global-submap)* T(submap-node)).t()  T(global-node).t()
+//    同一轨迹  分枝定界求出的 (Inter constraints)、(Inter residuals)
+//    不同轨迹  分枝定界求出的 (Inter constraints)、(Inter residuals)
 visualization_msgs::MarkerArray MapBuilderBridge::GetConstraintList() {
   visualization_msgs::MarkerArray constraint_list;
   int marker_id = 0;

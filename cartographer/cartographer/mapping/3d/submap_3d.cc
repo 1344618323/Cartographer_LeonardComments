@@ -78,6 +78,7 @@ std::vector<PixelData> AccumulatePixelData(
 // The first three entries of each returned value are a cell_index and the
 // last is the corresponding probability value. We batch them together like
 // this to only have one vector and have better cache locality.
+// (cxn)放回向量组，每个向量为[x,y,z,概率值]
 std::vector<Eigen::Array4i> ExtractVoxelData(
     const HybridGrid& hybrid_grid, const transform::Rigid3f& transform,
     Eigen::Array2i* min_index, Eigen::Array2i* max_index) {
@@ -95,7 +96,13 @@ std::vector<Eigen::Array4i> ExtractVoxelData(
 
     const Eigen::Vector3f cell_center_submap =
         hybrid_grid.GetCenterOfCell(it.GetCellIndex());
+    //里面的函数返回cell在submap中的栅格坐标（3维整数向量），外面的函数返回该cell中心的坐标
+    //也就是返回cell中心相对submap原点的空间坐标
+
+    //返回cell中心相对global-frame的空间坐标
     const Eigen::Vector3f cell_center_global = transform * cell_center_submap;
+
+    //前三个量是 cell中心相对global-frame的栅格坐标
     const Eigen::Array4i voxel_index_and_probability(
         common::RoundToInt(cell_center_global.x() * resolution_inverse),
         common::RoundToInt(cell_center_global.y() * resolution_inverse),
@@ -128,6 +135,11 @@ std::string ComputePixelValues(
       cell_data.push_back(0);  // alpha
       continue;
     }
+
+    //(cxn)这里要把同一高度的cell，压扁到一个cell中
+    //比如说这个（x，y）下的cell 一个有5个，已经统计出里面3个高度有权重 p0,p1,p2
+    //其余高度是空闲的，权重算作 pfree = max(p0，p1,p2) 
+    //最终输出概率为 (p0+p1+p2+ pfree*2*0.15)/(2*0.15+3)
     const float free_space = std::max(z_difference - pixel.count, 0.f);
     const float free_space_weight = kFreeSpaceWeight * free_space;
     const float total_weight = pixel.count + free_space_weight;
@@ -135,6 +147,7 @@ std::string ComputePixelValues(
     const float average_probability = ClampProbability(
         (pixel.probability_sum + free_space_probability * free_space_weight) /
         total_weight);
+        
     const int delta = 128 - ProbabilityToLogOddsInteger(average_probability);
     const uint8 alpha = delta > 0 ? 0 : -delta;
     const uint8 value = delta > 0 ? delta : 0;

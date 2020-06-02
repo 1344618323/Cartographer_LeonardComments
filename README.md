@@ -5,22 +5,22 @@
 以下是学习过程中随手写的笔记，比较乱。
 
 - [Leonard Chen 的注释](#leonard-chen-的注释)
-  - [LOCAL 2D SLAM](#local-2d-slam)
-  - [POSE EXTRAPOLATOR](#pose-extrapolator)
-  - [GLOBAL 2D SLAM](#global-2d-slam)
-  - [LOCAL 3D SLAM](#local-3d-slam)
-  - [GLOBAL 3D SLAM](#global-3d-slam)
+  - [Local 2D Slam](#local-2d-slam)
+  - [Pose Extrapolator](#pose-extrapolator)
+  - [Global 2D Slam](#global-2d-slam)
+  - [Local 3D Slam](#local-3d-slam)
+  - [Global 3D Slam](#global-3d-slam)
   - [Cartographer_ros](#cartographer_ros)
   - [配置文件](#配置文件)
-    - [backup_2d.lua的配置](#backup_2dlua的配置)
-      - [map_bulider.lua](#map_buliderlua)
-      - [pose_graph.lua](#pose_graphlua)
-      - [trajectory_bulider.lua](#trajectory_buliderlua)
-      - [trajectory_builder_2d.lua](#trajectory_builder_2dlua)
-      - [trajectory_builder_3d.lua](#trajectory_builder_3dlua)
-    - [backup_3d.lua的配置](#backup_3dlua的配置)
+    - [backup_2d.lua](#backup_2dlua)
+    - [map_bulider.lua](#map_buliderlua)
+    - [pose_graph.lua](#pose_graphlua)
+    - [trajectory_bulider.lua](#trajectory_buliderlua)
+    - [trajectory_builder_2d.lua](#trajectory_builder_2dlua)
+    - [trajectory_builder_3d.lua](#trajectory_builder_3dlua)
+    - [backup_3d.lua](#backup_3dlua)
 
-## LOCAL 2D SLAM
+## Local 2D Slam
 ```
 输入雷达数据->多雷达数据同步->使用外推器推算每个激光束时刻 i 的机器人在local-frame中的位姿 Tlw-i（即 去畸变），对点云数据有 Tlw-i*pi
 
@@ -74,7 +74,7 @@ MatchingResult
 ---
 
 
-## POSE EXTRAPOLATOR
+## Pose Extrapolator
 
 ```
 这个类其实就是用来推算机器人在local_frame中的位姿的
@@ -133,7 +133,7 @@ Imu-tracker-的两种更新情况：
 ```
 ---
 
-## GLOBAL 2D SLAM
+## Global 2D Slam
 ```
 主要是构建位姿图，并优化： Sparse pose adjustment （SPA）
 
@@ -225,7 +225,7 @@ SPA优化：
 ```
 ---
 
-## LOCAL 3D SLAM
+## Local 3D Slam
 
 这篇博客写得可以 [cartographer 3D scan matching 理解](https://www.cnblogs.com/mafuqiang/p/10885616.html)
 
@@ -252,8 +252,35 @@ local-3d-slam 是 local-2d-slam 的延伸，写下不同的地方
   我的理解是：3d中，优化非常消耗时间，低分辨率地图 较高的权值能让优化算法较快地迭代出 一个较好的位姿，然后高分辨率地图再去进一步优化
 ```
 
-## GLOBAL 3D SLAM
+## Global 3D Slam
 
+```
+与2d一样，建立pose-graph
+使用分枝定界scan-match寻找node与submap的回环约束，问题在于无法像2d那样（对点云先做预旋转，再多尺度二维平移），
+3d中有三个旋转自由度，暴力遍历太浪费时间了
+所以3d中通过 Rotational-scan-match 实现点云与submap的yaw对齐（3d中的imu非常重要，有了它的观测，我们才能这么大胆地认为重力方向是基本对齐的），然后再多尺度三维平移
+
+Rotational-scan-match 会对 每一帧点云 通过z方向 进行切片，分成多层点云，并对每层点云统计直方图，这些直方图叠加起来得到一帧点云的直方图（具体看rotational_scan_match.cc）
+直方图的获取方法：
+  对点云中的点遍历：
+    当前点云坐标c，参考点云坐标b，点云质心a
+    直方图横轴：c相对a的角度（会将180度分成120份），直方图纵轴：cb与ca的角度（越接近直角，打分越高）
+我们会发现这种直方图对平移不敏感，也就是说 理想情况下 一台车在同一场景下搜集点云，不过车怎么平移旋转，获得的直方图只是相差一个角度罢了
+不知道是谁想的，是那篇论文提出的想法？
+
+submap的直方图就是其里面的node的直方图旋转至global-frame中累加得到的
+这样以来，一帧点云经预yaw旋转后 是不是与submap足够类似，可以通过计算 node旋转后的直方图 与 submap直方图 的余弦相似度来判断。
+得分足够高的 经预yaw旋转的点云 才能进行 多尺度的三维平移匹配
+
+（下面的内容还不太确定）
+pose-graph-3d 中还有一处与 2d 不同，用户可以配置是否优化 IMU与加速度计 的修正量
+若优化，则会加入以下两种边 
+  角速度积分观测的相邻近的两个node旋转变换 
+  角速度与加速度计观测的相邻近的三个node的速度差（v23-v12）
+若不优化，则会加入以下两种边 
+  localslam中获取的相邻近的两个node位姿变换
+  odom中获取的相邻近的两个node位姿变换
+```
 
 ## Cartographer_ros
 这里大概写下ros中传感器数据是怎么调度到cartgrapher中的吧，写得比较乱，看得也不太明白
@@ -364,9 +391,9 @@ ros传感器数据回调
 
 ## 配置文件
 
-配置文件太多了，跳来跳去的奇烦，放到这里方面对照
+配置文件太多了，跳来跳去的奇烦，放到这里方便对照
 
-### backup_2d.lua的配置
+### backup_2d.lua
 ```
 include "map_builder.lua"
 include "trajectory_builder.lua"
@@ -402,7 +429,7 @@ MAP_BUILDER.use_trajectory_builder_2d = true
 TRAJECTORY_BUILDER_2D.num_accumulated_range_data = 10
 ```
 
-#### map_bulider.lua
+### map_bulider.lua
 ```
 include "pose_graph.lua"
 
@@ -414,7 +441,7 @@ MAP_BUILDER = {
 }
 ```
 
-#### pose_graph.lua
+### pose_graph.lua
 ```
 POSE_GRAPH = {
   optimize_every_n_nodes = 90,
@@ -489,7 +516,7 @@ POSE_GRAPH = {
 }
 ```
 
-#### trajectory_bulider.lua
+### trajectory_bulider.lua
 ```
 include "trajectory_builder_2d.lua"
 include "trajectory_builder_3d.lua"
@@ -501,7 +528,7 @@ TRAJECTORY_BUILDER = {
 }
 ```
 
-#### trajectory_builder_2d.lua
+### trajectory_builder_2d.lua
 
 ```
 TRAJECTORY_BUILDER_2D = {
@@ -571,7 +598,7 @@ TRAJECTORY_BUILDER_2D = {
 }
 ```
 
-#### trajectory_builder_3d.lua
+### trajectory_builder_3d.lua
 ```
 MAX_3D_RANGE = 60.
 
@@ -637,7 +664,7 @@ TRAJECTORY_BUILDER_3D = {
 }
 ```
 
-### backup_3d.lua的配置
+### backup_3d.lua
 ```
 options = {
   map_builder = MAP_BUILDER,

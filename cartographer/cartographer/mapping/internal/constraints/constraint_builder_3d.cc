@@ -300,7 +300,8 @@ void ConstraintBuilder3D::ComputeConstraint(
 }
 
 // ！！！每次往posegraph里加node的时候！！！，都会找graph中的node们与submap们的约束：新node与之前submap们的约束、新submap与之前node的约束
-// 在cartographer中为了避免大量的计算，会用一个节拍器(默认配置是0.03)来限制 要计算的约束的数量，通过节拍器的候选集{node，submap}才会进行分枝定界
+// 在cartographer中为了避免大量的计算，会先判断node与submap的local位姿是不是差得太多，若差得太多（位移差超过15m），就没必要去算约束了
+// 然后再用一个节拍器(默认配置是0.03)来限制 要计算的约束的数量，通过节拍器的候选集{node，submap}才会进行分枝定界
 // 对这些候选集算好之后，会进行统计
 // 输出示例：13 computations resulted in 0 additional constraints. 即这次有13个候选集，算出了0个约束
 // 以及3个直方图，值得一提的是直方图存储了 所有通过分枝定界 得到的约束，不只只是这一次得到的。

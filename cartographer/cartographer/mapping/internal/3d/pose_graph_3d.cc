@@ -39,6 +39,34 @@
 namespace cartographer {
 namespace mapping {
 
+/*cxn
+与2d一样，建立pose-graph
+使用分枝定界scan-match寻找node与submap的回环约束，问题在于无法像2d那样（对点云先做预旋转，再多尺度二维平移），
+3d中有三个旋转自由度，暴力遍历太浪费时间了
+所以3d中通过 Rotational-scan-match 实现点云与submap的yaw对齐（3d中的imu非常重要，有了它的观测，我们才能这么大胆地认为重力方向是基本对齐的），然后再多尺度三维平移
+
+Rotational-scan-match 会对 每一帧点云 通过z方向 进行切片，分成多层点云，并对每层点云统计直方图，这些直方图叠加起来得到一帧点云的直方图（具体看rotational_scan_match.cc）
+直方图的获取方法：
+  对点云中的点遍历：
+    当前点云坐标c，参考点云坐标b，点云质心a
+    直方图横轴：c相对a的角度（会将180度分成120份），直方图纵轴：cb与ca的角度（越接近直角，打分越高）
+我们会发现这种直方图对平移不敏感，也就是说 理想情况下 一台车在同一场景下搜集点云，不过车怎么平移旋转，获得的直方图只是相差一个角度罢了
+不知道是谁想的，是那篇论文提出的想法？
+
+submap的直方图就是其里面的node的直方图旋转至global-frame中累加得到的
+这样以来，一帧点云经预yaw旋转后 是不是与submap足够类似，可以通过计算 node旋转后的直方图 与 submap直方图 的余弦相似度来判断。
+得分足够高的 经预yaw旋转的点云 才能进行 多尺度的三维平移匹配
+
+（下面的内容还不太确定）
+pose-graph-3d 中还有一处与 2d 不同，用户可以配置是否优化 IMU与加速度计 的修正量
+若优化，则会加入以下两种边 
+  角速度积分观测的相邻近的两个node旋转变换 
+  角速度与加速度计观测的相邻近的三个node的速度差（v23-v12）
+若不优化，则会加入以下两种边 
+  localslam中获取的相邻近的两个node位姿变换
+  odom中获取的相邻近的两个node位姿变换
+*/
+
 PoseGraph3D::PoseGraph3D(
     const proto::PoseGraphOptions& options,
     std::unique_ptr<optimization::OptimizationProblem3D> optimization_problem,

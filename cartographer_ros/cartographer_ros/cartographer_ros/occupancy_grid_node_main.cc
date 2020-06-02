@@ -48,6 +48,9 @@ using ::cartographer::io::PaintSubmapSlicesResult;
 using ::cartographer::io::SubmapSlice;
 using ::cartographer::mapping::SubmapId;
 
+/*(cxn) 用于监听 slam过程中发布的 submap_list
+接受到后，会调用服务从slam节点中请求对应的 压扁到二维的submap数据，并以nav_msgs::OccupancyGrid的格式发布出去
+*/
 class Node {
  public:
   explicit Node(double resolution, double publish_period_sec);

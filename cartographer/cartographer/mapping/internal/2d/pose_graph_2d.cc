@@ -930,7 +930,7 @@ transform::Rigid3d PoseGraph2D::GetInterpolatedGlobalTrajectoryPose(
       .transform;
 }
 
-//就用用上次优化后的结果global-submap-poses-中的submap计算Tgw-submap*Tlw-submap'
+//用上次优化后的结果global-submap-poses-中的submap计算Tgw-submap*Tlw-submap'
 transform::Rigid3d PoseGraph2D::GetLocalToGlobalTransform(
     const int trajectory_id) const {
   common::MutexLocker locker(&mutex_);

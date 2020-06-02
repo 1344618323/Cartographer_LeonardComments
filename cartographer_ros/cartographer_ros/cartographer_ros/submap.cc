@@ -28,6 +28,8 @@ namespace cartographer_ros {
 std::unique_ptr<::cartographer::io::SubmapTextures> FetchSubmapTextures(
     const ::cartographer::mapping::SubmapId& submap_id,
     ros::ServiceClient* client) {
+  
+  //(cxn)从服务器中找到对应的压扁成二维的submap
   ::cartographer_ros_msgs::SubmapQuery srv;
   srv.request.trajectory_id = submap_id.trajectory_id;
   srv.request.submap_index = submap_id.submap_index;
@@ -38,10 +40,15 @@ std::unique_ptr<::cartographer::io::SubmapTextures> FetchSubmapTextures(
   if (srv.response.textures.empty()) {
     return nullptr;
   }
+
   auto response =
       ::cartographer::common::make_unique<::cartographer::io::SubmapTextures>();
+  
+  //version是指这个submap已经被多少帧点云插入了
   response->version = srv.response.submap_version;
+
   for (const auto& texture : srv.response.textures) {
+    //对于3dsubmap而言，有高低分辨率两张图，所以会进两次循环
     const std::string compressed_cells(texture.cells.begin(),
                                        texture.cells.end());
     response->textures.emplace_back(::cartographer::io::SubmapTexture{
