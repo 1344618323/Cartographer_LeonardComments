@@ -293,11 +293,11 @@ cartographer中还考虑了，地标、GPS的信息
 
 其实说是gps不太准确，应该是任意能提供机器人位姿的传感器，如室内的uwb估计也行,以下就用fix作为对这类传感器的总称
 使用fix要注意两个问题：
-* fix的数据更新会比较频繁，所以对于待优化的node，根据其时间戳，对fix的线性插值，来获得那个时刻的 Tfix_node
+* fix的数据更新会比较频繁，所以对于待优化的node，根据其时间戳，对fix线性插值，来获得那个时刻的 Tfix_node
 * fix_frame 相对 global_frame 变换（也就是fix_frame原点在global_frame中的位姿）是不确定的，所以要优化（旋转只优化yaw轴），
   其初值根据第一个 Tfix_node*Tglobal_node' （旋转只管yaw轴）来确定，或者从文件读取
 也就是说 Tfix_node 是测量值，链接两个顶点：Tglobal_node 与 Tfix_global
-看起来是算法比较相信 fix 给的数据的（废话）
+看起来算法是比较相信 fix 给的数据的（废话）
 另外，考虑到gps 没有给旋转数据，是不是旋转的权重要设置成0？
 ```
 
