@@ -103,6 +103,8 @@ std::unique_ptr<transform::Rigid3d> Interpolate(
 
 // Selects a trajectory node closest in time to the landmark observation and
 // applies a relative transform from it.
+// (cxn)计算LMi的位姿初值：(Tglobal_baselink)*(Tbaselink_lmi)，其中 Tglobal_baselink 由
+// 获得这个观测信息的轨迹上 观测时刻 的前后两个 node 位姿的线性插值得到
 transform::Rigid3d GetInitialLandmarkPose(
     const LandmarkNode::LandmarkObservation& observation,
     const NodeSpec3D& prev_node, const NodeSpec3D& next_node,
@@ -141,6 +143,7 @@ void AddLandmarkCostFunctions(
         continue;
       }
       // Find the trajectory nodes before and after the landmark observation.
+      // 我们知道是那一条轨迹得到了这次对某个LMi观测信息，可以根据观测信息的时间戳，找到前后两个node
       auto next =
           node_data.lower_bound(observation.trajectory_id, observation.time);
       // The landmark observation was made, but the next trajectory node has
@@ -173,6 +176,7 @@ void AddLandmarkCostFunctions(
               C_landmarks->at(landmark_id).rotation());
         }
       }
+      // 一次对LMi的观测链接三个顶点：LMi的位姿、前一个node的位姿、后一个node的位姿
       problem->AddResidualBlock(
           LandmarkCostFunction3D::CreateAutoDiffCostFunction(
               observation, prev->data, next->data),
@@ -352,7 +356,7 @@ void OptimizationProblem3D::Solve(
 
   // Add constraints based on IMU observations of angular velocities and
   // linear acceleration.
-  //(cxn) 若配置时希望对重力方向也有优化，则
+  //(cxn) 若配置时希望对 重力常数、IMU的角度固有偏差 有优化，则
   // 1. 对于同一轨迹上任意两个相邻node，有Twi、Twj，相互之前的旋转为Rij，可以对两个node的旋转与IMU的角度偏置R(imu-calibration)
   // 2. 对于同一轨迹上任意三个相邻node，有Twi、Twj、Twk，我们可以求出 （j到k的速度与i到j的速度的差）deltaV，这个向量的坐标系是global
   //    用IMU可以算出这个值的观测值： 我们可以算出 时刻t((i+j)/2)到时刻t((j+k)/2)的速度差，这个向量的坐标系是 t((i+j)/2)时刻的IMU坐标系，
@@ -450,7 +454,7 @@ void OptimizationProblem3D::Solve(
     }
   }
 
-  //(cxn) 若配置时不希望对重力方向有优化，则使用localslam中求得的相邻node的位姿变换，以及odom提供的位姿变换作为观测量
+  //(cxn) 若配置时不希望对 {重力常数、IMU的角度固有偏差} 有优化，则使用localslam中求得的相邻node的位姿变换，以及odom提供的位姿变换作为观测量
   // 优化同一轨迹中任意两个相邻node的全局位姿
   if (options_.fix_z_in_3d()) {
     // Add penalties for violating odometry (if available) and changes between
@@ -511,6 +515,7 @@ void OptimizationProblem3D::Solve(
   for (auto node_it = node_data_.begin(); node_it != node_data_.end();) {
     const int trajectory_id = node_it->id.trajectory_id;
     const auto trajectory_end = node_data_.EndOfTrajectory(trajectory_id);
+    
     if (!fixed_frame_pose_data_.HasTrajectory(trajectory_id)) {
       node_it = trajectory_end;
       continue;
@@ -522,6 +527,7 @@ void OptimizationProblem3D::Solve(
       const NodeId node_id = node_it->id;
       const NodeSpec3D& node_data = node_it->data;
 
+      //对gps获得的位姿插值，得到 这个node时刻的 gps位姿  Tgps_node
       const std::unique_ptr<transform::Rigid3d> fixed_frame_pose =
           Interpolate(fixed_frame_pose_data_, trajectory_id, node_data.time);
       if (fixed_frame_pose == nullptr) {
@@ -533,6 +539,9 @@ void OptimizationProblem3D::Solve(
           options_.fixed_frame_pose_rotation_weight()};
 
       if (!fixed_frame_pose_initialized) {
+        //对于第一个获得的Tgps_node，会用于计算 Tglobal_gps 即 global_frame与 gpsLocal_frame的关系
+        //Tglobal_gps这个值也可以是从pbstream中读取的
+        //若是计算 Tglobal_gps，要忽略掉两个坐标系pitch和roll方向的旋转偏差
         transform::Rigid3d fixed_frame_pose_in_map;
         if (trajectory_data.fixed_frame_origin_in_map.has_value()) {
           fixed_frame_pose_in_map =
@@ -551,11 +560,12 @@ void OptimizationProblem3D::Solve(
                         Eigen::Vector3d::UnitZ())),
                 nullptr,
                 common::make_unique<ceres::AutoDiffLocalParameterization<
-                    YawOnlyQuaternionPlus, 4, 1>>(),
+                    YawOnlyQuaternionPlus, 4, 1>>(),//(cxn)注意了，只优化yaw！！！
                 &problem));
         fixed_frame_pose_initialized = true;
       }
 
+      // 观测是 Tgps_node,优化的是 Tglobal_node 与 Tglobal_gps
       problem.AddResidualBlock(
           SpaCostFunction3D::CreateAutoDiffCostFunction(constraint_pose),
           nullptr /* loss function */,

@@ -75,12 +75,20 @@ void SensorBridge::HandleOdometryMessage(
   }
 }
 
-void SensorBridge::HandleNavSatFixMessage(
-//(cxn)虽然不了解GPS，不过可以猜出来大概在搞啥
-//信号不好的时候返回空数据就是了，
-//在第一次收到好信号数据时，会计算 T(link_gps) 记录在ecef_to_local_frame_
-//之后每次接收到数据有 T(link_gps)*Pgps = Plink
+/*(cxn)
+几个知识点：
+* 南纬是负,北纬是正,东经是正,西经是负
+* GPS返回的 【经度、纬度、海拔】 是 大地坐标系 中的坐标，需要转到 地心地固坐标系（ECEF）
+* 地心地固坐标系：原点 O (0,0,0)为地球质心，z 轴与地轴平行指向北极点，x 轴指向本初子午线(也就是零度经线)与赤道的交点，y 轴垂直于xOz平面(即东经90度与赤道的交点)构成右手坐标系）
+* 机器人不使用 地心地固坐标系，而是用 localFrame（所谓的localFrame的x方向沿着经线指向南极，z方向垂直于经线向天，y方向垂直与x、z方向）
 
+在这个GPS数据接收函数中，在第一次正常收到GPS信号后，会计算 Tlocal-ECEF，
+并将 第一个正常接收到GPS的位置 的0海拔处，作为localFrame的原点
+
+每次接收到gps信号，处理刘晨 Pgps --> Pecef --> Tlocal-ECEF * Pecef --> Plocal
+讲 Plocal 包装成 时间戳+刚体变换 发送到 posegraph 中
+*/
+void SensorBridge::HandleNavSatFixMessage(
     const std::string& sensor_id, const sensor_msgs::NavSatFix::ConstPtr& msg) {
   const carto::common::Time time = FromRos(msg->header.stamp);
   if (msg->status.status == sensor_msgs::NavSatStatus::STATUS_NO_FIX) {
@@ -106,10 +114,11 @@ void SensorBridge::HandleNavSatFixMessage(
                                      msg->altitude)))});
 }
 
+// 每一帧msg会返回 n个 T(baselink_LMi)，发送到posegraph
+// 每一帧msg的每个LMi的数据类型为：string id(也就是说是已经处理好数据关联问题的地标)；geometry_msgs/Pose；float64 translation_weight；float64 rotation_weight
 void SensorBridge::HandleLandmarkMessage(
     const std::string& sensor_id,
     const cartographer_ros_msgs::LandmarkList::ConstPtr& msg) {
-  //(cxn)? 不清楚是啥，看起来存的是 T(lMi_baselink)
   trajectory_builder_->AddSensorData(sensor_id, ToLandmarkData(*msg));
 }
 
@@ -132,7 +141,7 @@ std::unique_ptr<carto::sensor::ImuData> SensorBridge::ToImuData(
   if (sensor_to_tracking == nullptr) {
     return nullptr;
   }
-  //(cxn)imu_frame 必须与 baselink 坐标（不包括旋转） 用一位置上
+  //(cxn) 布置机器人tf的时候，imu_frame 必须与 baselink 坐标（不包括旋转） 用一位置上，否则无法通过这个check
   CHECK(sensor_to_tracking->translation().norm() < 1e-5)
       << "The IMU frame must be colocated with the tracking frame. "
          "Transforming linear acceleration into the tracking frame will "
@@ -142,7 +151,7 @@ std::unique_ptr<carto::sensor::ImuData> SensorBridge::ToImuData(
           time,
           sensor_to_tracking->rotation() * ToEigen(msg->linear_acceleration),
           sensor_to_tracking->rotation() * ToEigen(msg->angular_velocity)});
-          //(cxn) R(baselink_IMU)P(IMU)，即获取baselink的线加速度与角速度
+          // R(baselink_IMU)P(IMU)，即获取baselink的线加速度与角速度
           // 角速度单位是 rad/sec，线速度为 m/s^2
 }
 

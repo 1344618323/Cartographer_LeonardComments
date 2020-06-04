@@ -25,14 +25,18 @@ namespace cartographer {
 namespace mapping {
 namespace optimization {
 
-/*(cxn)
+/*(cxn)?
   计算误差的公式不是 T_{ij}^{m}'*T_{i}'*T_{j}，而是 https://google-cartographer.readthedocs.io/en/latest/cost_functions.html
   
-  首先 T_{ij} = [R_{i}'R_{2}  R_{1}'(t_{2}-t_{1}); 0 1]
-  err(i,j)= [T_{ij}^m.transpose() - T_{ij}.transpose(); T_{ij}.rotation()'*T_{ij}^m.rotation()]
-  注意旋转误差要化为 旋转向量
+  而是 T_{ij}^{m} - (T_{i}^{-1} * T_{j}) （2d中还好解释，3d中的旋转是什么鬼）
+  T_{i}^{-1} * T_{j} = [ R_{i}^{-1} * R_{j} ; R_{i}^{-1} * ( t_{j} - t_{i} ) ]
 
-  若是2D的 err(i,j)=[T_{ij}^m.transpose() - T_{ij}.transpose(); T_{ij}^m.theta - (T_{j}.theta-T_{i}.theta)]
+  在2d中，err = [ t_{ij}^{m} - R_{i}^{-1} * ( t_{j} - t_{i} )  ;  theta_{ij} - (theta_{j}-theta_{i})]
+
+  在3d中，err = [ t_{ij}^{m} - R_{i}^{-1} * ( t_{j} - t_{i} )  ;  ( R_{i}^{-1} * R_{j} )^{-1} * R_{ij}^{m} ]
+  注意第二项在矩阵乘法结束后，要转成旋转向量
+  
+  所以说这两个公式咋来的？还是因人而异，没有固定的方式？
 */
 
 template <typename T>
@@ -140,6 +144,7 @@ std::array<T, 4> SlerpQuaternions(const T* const start, const T* const end,
            prev_scale * start[3] + next_scale * end[3]}};
 }
 
+// 简单的线性插值
 template <typename T>
 std::tuple<std::array<T, 4> /* rotation */, std::array<T, 3> /* translation */>
 InterpolateNodes3D(const T* const prev_node_rotation,

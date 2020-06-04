@@ -274,6 +274,9 @@ geometry_msgs::Point ToGeometryMsgPoint(const Eigen::Vector3d& vector3d) {
   return point;
 }
 
+//将大地坐标系（坐标表示 经度、纬度、海拔） 转到 地心地固坐标系 （原点 O (0,0,0)为地球质心，
+//z 轴与地轴平行指向北极点，x 轴指向本初子午线(也就是零度经线)与赤道的交点，y 轴垂直于xOz平面(即东经90度与赤道的交点)构成右手坐标系）
+//南纬是负,北纬是正,东经是正,西经是负
 Eigen::Vector3d LatLongAltToEcef(const double latitude, const double longitude,
                                  const double altitude) {
   // https://en.wikipedia.org/wiki/Geographic_coordinate_conversion#From_geodetic_to_ECEF_coordinates
@@ -295,6 +298,7 @@ Eigen::Vector3d LatLongAltToEcef(const double latitude, const double longitude,
   return Eigen::Vector3d(x, y, z);
 }
 
+//计算 Tlocal-ECEF，所谓的localFrame的x方向沿着经线指向南极，z方向垂直于经线向上，y方向垂直与x、z方向
 cartographer::transform::Rigid3d ComputeLocalFrameFromLatLong(
     const double latitude, const double longitude) {
   const Eigen::Vector3d translation = LatLongAltToEcef(latitude, longitude, 0.);
